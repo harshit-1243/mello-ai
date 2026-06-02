@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mello.ai — Never Lose a Booking to a Missed Call</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --black:#080808;
+  --surface:#0f0f0f;
+  --surface2:#161616;
+  --surface3:#1e1e1e;
+  --orange:#FF5500;
+  --orange-mid:rgba(255,85,0,0.45);
+  --orange-low:rgba(255,85,0,0.12);
+  --orange-xlow:rgba(255,85,0,0.06);
+  --white:#ffffff;
+  --grey:#6a6a6a;
+  --grey-light:#999;
+  --border:rgba(255,255,255,0.07);
+  --border-orange:rgba(255,85,0,0.22);
+}
+
+html{scroll-behavior:smooth;overflow-x:hidden}
+
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--black);
+  color:var(--white);
+  overflow-x:hidden;
+  cursor:none;
+}
+
+/* CUSTOM CURSOR */
+#cursor{
+  position:fixed;
+  width:10px;height:10px;
+  background:var(--orange);
+  border-radius:50%;
+  pointer-events:none;
+  z-index:9999;
+  transform:translate(-50%,-50%);
+  transition:transform 0.1s,width 0.25s,height 0.25s,background 0.25s;
+  mix-blend-mode:normal;
+}
+#cursor-ring{
+  position:fixed;
+  width:36px;height:36px;
+  border:1px solid rgba(255,85,0,0.5);
+  border-radius:50%;
+  pointer-events:none;
+  z-index:9998;
+  transform:translate(-50%,-50%);
+  transition:transform 0.12s ease-out,width 0.3s,height 0.3s,opacity 0.3s;
+}
+body:hover #cursor{opacity:1}
+
+/* THREE.JS CANVAS */
+#three-canvas{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  z-index:1;
+  transition:opacity 0.8s ease;
+}
+
+/* SCROLL HINT */
+#scroll-hint{
+  position:fixed;
+  bottom:48px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:20;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  transition:opacity 0.5s;
+}
+#scroll-hint .sh-line{
+  width:1px;height:48px;
+  background:linear-gradient(to bottom,var(--orange),transparent);
+  animation:shPulse 1.8s ease-in-out infinite;
+}
+#scroll-hint .sh-label{
+  font-family:'Syne',sans-serif;
+  font-size:10px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--grey);
+  writing-mode:vertical-rl;
+  transform:rotate(180deg);
+}
+@keyframes shPulse{
+  0%,100%{opacity:0.3;transform:scaleY(0.7)}
+  50%{opacity:1;transform:scaleY(1)}
+}
+
+/* INTRO PROGRESS BAR */
+#progress-bar{
+  position:fixed;
+  left:0;top:0;
+  width:0%;height:2px;
+  background:linear-gradient(to right,var(--orange),#ff8833);
+  z-index:30;
+  transition:width 0.1s;
+}
+
+/* INTRO SPACER */
+#intro-spacer{
+  height:480vh;
+  position:relative;
+  z-index:2;
+  pointer-events:none;
+}
+
+/* NAVBAR */
+nav{
+  position:fixed;
+  top:0;left:0;right:0;
+  z-index:100;
+  padding:28px 72px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  opacity:0;
+  visibility:hidden;
+  transition:opacity 0.6s,visibility 0.6s,background 0.4s,padding 0.3s;
+}
+nav.visible{opacity:1;visibility:visible}
+nav.scrolled{
+  background:rgba(8,8,8,0.88);
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+  padding:18px 72px;
+}
+
+.nav-logo{
+  font-family:'Syne',sans-serif;
+  font-size:18px;
+  font-weight:800;
+  color:var(--white);
+  text-decoration:none;
+  letter-spacing:-0.5px;
+}
+.nav-logo em{color:var(--orange);font-style:normal}
+
+.nav-links{
+  display:flex;
+  gap:44px;
+  list-style:none;
+}
+.nav-links a{
+  color:var(--grey);
+  text-decoration:none;
+  font-size:14px;
+  font-weight:400;
+  letter-spacing:0.01em;
+  transition:color 0.2s;
+}
+.nav-links a:hover{color:var(--white)}
+
+.btn{
+  background:var(--orange);
+  color:white;
+  border:none;
+  padding:11px 26px;
+  border-radius:100px;
+  font-size:14px;
+  font-weight:600;
+  font-family:'DM Sans',sans-serif;
+  cursor:none;
+  text-decoration:none;
+  letter-spacing:0.01em;
+  transition:all 0.22s;
+  display:inline-block;
+  position:relative;
+}
+.btn:hover{
+  background:#ff6a1a;
+  transform:translateY(-2px);
+  box-shadow:0 12px 36px rgba(255,85,0,0.38);
+}
+
+/* MAIN CONTENT */
+#main-content{
+  position:relative;
+  z-index:5;
+  background:var(--black);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.9s ease;
+}
+#main-content.active{opacity:1;pointer-events:all}
+
+/* =====================
+   HERO
+   ===================== */
+#hero{
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  align-items:center;
+  padding:0 72px;
+  gap:60px;
+  position:relative;
+  overflow:hidden;
+}
+
+#hero::before{
+  content:'';
+  position:absolute;
+  top:-200px;right:-200px;
+  width:700px;height:700px;
+  background:radial-gradient(circle,rgba(255,85,0,0.07) 0%,transparent 65%);
+  pointer-events:none;
+}
+
+.hero-left{padding-top:80px}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  border:1px solid var(--border-orange);
+  border-radius:100px;
+  padding:7px 16px 7px 10px;
+  font-size:11.5px;
+  font-weight:500;
+  color:var(--orange);
+  letter-spacing:0.07em;
+  text-transform:uppercase;
+  margin-bottom:36px;
+}
+.badge-dot{
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--orange);
+  animation:dotPulse 2s ease-in-out infinite;
+  flex-shrink:0;
+}
+@keyframes dotPulse{
+  0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,85,0,0.5)}
+  50%{opacity:0.6;box-shadow:0 0 0 6px rgba(255,85,0,0)}
+}
+
+h1{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(46px,5.5vw,80px);
+  font-weight:800;
+  line-height:1.02;
+  letter-spacing:-2.5px;
+  color:var(--white);
+  margin-bottom:28px;
+}
+h1 .hl{color:var(--orange)}
+
+.hero-sub{
+  font-size:17px;
+  line-height:1.75;
+  color:var(--grey-light);
+  max-width:460px;
+  margin-bottom:48px;
+  font-weight:300;
+}
+
+.cta-row{
+  display:flex;
+  align-items:center;
+  gap:28px;
+  margin-bottom:56px;
+}
+
+.btn-ghost{
+  color:var(--white);
+  text-decoration:none;
+  font-size:14px;
+  font-weight:500;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  opacity:0.65;
+  transition:opacity 0.2s,gap 0.2s;
+  cursor:none;
+}
+.btn-ghost:hover{opacity:1;gap:10px}
+
+.hero-trust{
+  font-size:12.5px;
+  color:#3a3a3a;
+  letter-spacing:0.02em;
+}
+.hero-trust em{color:var(--grey);font-style:normal}
+
+/* HERO RIGHT - Floating Stats Cards */
+.hero-right{
+  padding-top:80px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  position:relative;
+}
+
+.stat-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:24px 28px;
+  position:relative;
+  overflow:hidden;
+  transition:transform 0.3s ease,border-color 0.3s;
+}
+.stat-card:hover{
+  transform:translateY(-3px) rotate3d(1,0,0,2deg);
+  border-color:var(--border-orange);
+}
+.stat-card::after{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:1px;
+  background:linear-gradient(to right,transparent,var(--orange),transparent);
+  opacity:0;
+  transition:opacity 0.3s;
+}
+.stat-card:hover::after{opacity:1}
+
+.sc-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:8px;
+}
+.sc-label{font-size:11px;color:var(--grey);letter-spacing:0.08em;text-transform:uppercase;font-weight:500}
+.sc-badge{
+  background:rgba(255,85,0,0.12);
+  color:var(--orange);
+  font-size:10px;
+  padding:3px 10px;
+  border-radius:100px;
+  font-weight:600;
+  letter-spacing:0.05em;
+}
+.sc-value{
+  font-family:'Syne',sans-serif;
+  font-size:36px;
+  font-weight:800;
+  letter-spacing:-1.5px;
+  line-height:1;
+  margin-bottom:4px;
+}
+.sc-sub{font-size:12.5px;color:var(--grey);font-weight:300}
+
+.stat-card.big .sc-value{font-size:48px}
+
+/* Live indicator */
+.live-dot{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  color:var(--grey);
+}
+.live-dot::before{
+  content:'';
+  width:6px;height:6px;
+  border-radius:50%;
+  background:#22c55e;
+  box-shadow:0 0 8px rgba(34,197,94,0.6);
+  animation:livePulse 2s infinite;
+}
+@keyframes livePulse{
+  0%,100%{opacity:1}50%{opacity:0.4}
+}
+
+/* =====================
+   PROBLEM SECTION
+   ===================== */
+#problem{
+  padding:180px 72px;
+  text-align:center;
+  position:relative;
+}
+#problem::before{
+  content:'';
+  position:absolute;
+  left:50%;top:50%;
+  transform:translate(-50%,-50%);
+  width:800px;height:400px;
+  background:radial-gradient(ellipse,rgba(255,85,0,0.04) 0%,transparent 65%);
+  pointer-events:none;
+}
+
+.problem-pairs{display:flex;flex-direction:column;gap:52px}
+
+.problem-pair{
+  opacity:0;
+  transform:translateY(40px);
+  transition:all 0.8s cubic-bezier(0.16,1,0.3,1);
+}
+.problem-pair.visible{opacity:1;transform:translateY(0)}
+
+.p-dim{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(28px,3.8vw,52px);
+  font-weight:700;
+  color:#252525;
+  letter-spacing:-1.5px;
+  line-height:1.1;
+}
+.p-bright{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(28px,3.8vw,52px);
+  font-weight:800;
+  color:var(--white);
+  letter-spacing:-1.5px;
+  line-height:1.1;
+}
+.p-bright .hl{color:var(--orange)}
+
+/* =====================
+   PRODUCTS
+   ===================== */
+#products{
+  padding:120px 72px;
+  border-top:1px solid var(--border);
+}
+
+.sec-label{
+  font-size:11px;
+  font-weight:600;
+  color:var(--orange);
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  margin-bottom:18px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.sec-label::before{
+  content:'';
+  width:24px;height:1px;
+  background:var(--orange);
+}
+
+.sec-title{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(32px,3.5vw,50px);
+  font-weight:800;
+  letter-spacing:-2px;
+  margin-bottom:72px;
+  line-height:1.05;
+  max-width:520px;
+}
+
+.products-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:20px;
+}
+
+.prod-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:40px 36px 36px;
+  transition:all 0.35s cubic-bezier(0.16,1,0.3,1);
+  cursor:none;
+  position:relative;
+  overflow:hidden;
+}
+.prod-card::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 0%, rgba(255,85,0,0.06) 0%, transparent 60%);
+  opacity:0;
+  transition:opacity 0.35s;
+}
+.prod-card:hover{
+  border-color:var(--border-orange);
+  transform:translateY(-6px) perspective(800px) rotateX(3deg);
+  box-shadow:0 24px 64px rgba(255,85,0,0.1),0 0 0 1px rgba(255,85,0,0.1);
+}
+.prod-card:hover::before{opacity:1}
+
+.pc-icon{
+  width:52px;height:52px;
+  background:var(--orange-low);
+  border:1px solid var(--border-orange);
+  border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;
+  margin-bottom:28px;
+}
+
+.pc-tag{
+  font-size:10.5px;
+  font-weight:600;
+  color:var(--orange);
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.pc-title{
+  font-family:'Syne',sans-serif;
+  font-size:22px;
+  font-weight:700;
+  margin-bottom:16px;
+  letter-spacing:-0.5px;
+}
+.pc-body{
+  font-size:14.5px;
+  line-height:1.75;
+  color:var(--grey-light);
+  font-weight:300;
+}
+
+/* Feature tags */
+.pc-features{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:24px;
+}
+.feat-tag{
+  font-size:11px;
+  color:var(--grey);
+  border:1px solid var(--border);
+  padding:4px 12px;
+  border-radius:100px;
+  letter-spacing:0.03em;
+}
+
+/* =====================
+   HOW IT WORKS
+   ===================== */
+#how{
+  padding:120px 72px;
+  border-top:1px solid var(--border);
+}
+
+.how-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:80px;
+  align-items:start;
+}
+.how-sticky{
+  position:sticky;
+  top:120px;
+}
+.how-steps{display:flex;flex-direction:column;gap:0}
+
+.hw-step{
+  padding:36px 0;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  gap:28px;
+  align-items:flex-start;
+  opacity:0;
+  transform:translateX(-20px);
+  transition:all 0.7s cubic-bezier(0.16,1,0.3,1);
+  cursor:none;
+}
+.hw-step.visible{opacity:1;transform:translateX(0)}
+
+.hw-num{
+  font-family:'Syne',sans-serif;
+  font-size:11px;
+  font-weight:700;
+  color:var(--grey);
+  letter-spacing:0.1em;
+  min-width:28px;
+  padding-top:4px;
+  transition:color 0.3s;
+}
+.hw-step:hover .hw-num{color:var(--orange)}
+
+.hw-body h3{
+  font-family:'Syne',sans-serif;
+  font-size:19px;
+  font-weight:700;
+  margin-bottom:10px;
+  letter-spacing:-0.3px;
+  transition:color 0.3s;
+}
+.hw-step:hover h3{color:var(--orange)}
+
+.hw-body p{
+  font-size:14.5px;
+  line-height:1.75;
+  color:var(--grey-light);
+  font-weight:300;
+}
+
+/* How it works visual side */
+.how-visual{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+
+.vis-block{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:28px;
+  position:relative;
+  overflow:hidden;
+  opacity:0;
+  transform:translateY(20px);
+  transition:all 0.7s cubic-bezier(0.16,1,0.3,1);
+}
+.vis-block.visible{opacity:1;transform:translateY(0)}
+
+/* Call UI mockup */
+.call-ui{display:flex;flex-direction:column;gap:12px}
+.call-header{display:flex;align-items:center;justify-content:space-between}
+.call-name{font-family:'Syne',sans-serif;font-size:17px;font-weight:700}
+.call-status{
+  background:rgba(34,197,94,0.12);
+  color:#22c55e;
+  font-size:11px;
+  padding:4px 12px;
+  border-radius:100px;
+  font-weight:600;
+}
+.waveform{
+  display:flex;align-items:center;gap:3px;height:32px;
+}
+.wv-bar{
+  width:3px;
+  background:var(--orange);
+  border-radius:2px;
+  animation:wvAnim var(--d) ease-in-out infinite;
+  opacity:0.7;
+}
+@keyframes wvAnim{
+  0%,100%{height:4px;opacity:0.3}
+  50%{height:var(--h);opacity:1}
+}
+.call-detail{display:flex;gap:12px;flex-wrap:wrap}
+.cd-item{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  padding:6px 14px;
+  border-radius:100px;
+  font-size:12px;
+  color:var(--grey-light);
+}
+
+/* Booking confirmation */
+.booking-ui{display:flex;flex-direction:column;gap:14px}
+.bu-row{display:flex;justify-content:space-between;align-items:center}
+.bu-label{font-size:12px;color:var(--grey);letter-spacing:0.05em;text-transform:uppercase}
+.bu-val{font-size:14px;font-weight:500;color:var(--white)}
+.bu-confirmed{
+  background:rgba(255,85,0,0.1);
+  border:1px solid var(--border-orange);
+  border-radius:12px;
+  padding:16px;
+  text-align:center;
+  font-family:'Syne',sans-serif;
+  font-size:15px;
+  font-weight:700;
+  color:var(--orange);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+
+/* WhatsApp preview */
+.wa-ui{display:flex;flex-direction:column;gap:10px}
+.wa-header{display:flex;align-items:center;gap:10px}
+.wa-icon{
+  width:36px;height:36px;
+  background:rgba(37,211,102,0.1);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;
+}
+.wa-name{font-size:13px;font-weight:600}
+.wa-time{font-size:11px;color:var(--grey)}
+.wa-bubble{
+  background:var(--surface2);
+  border-radius:0 14px 14px 14px;
+  padding:14px 18px;
+  font-size:13.5px;
+  line-height:1.65;
+  color:var(--grey-light);
+  font-weight:300;
+}
+.wa-bubble strong{color:var(--white);font-weight:500}
+.wa-timer{font-size:11px;color:var(--grey);text-align:right;margin-top:4px}
+
+/* =====================
+   SOCIAL PROOF STRIP
+   ===================== */
+#proof{
+  padding:72px 0;
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  overflow:hidden;
+}
+.proof-label{
+  text-align:center;
+  font-size:10px;
+  color:#2e2e2e;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  margin-bottom:40px;
+  font-weight:500;
+}
+
+.strip-wrap{
+  position:relative;
+  overflow:hidden;
+}
+.strip-wrap::before,
+.strip-wrap::after{
+  content:'';
+  position:absolute;
+  top:0;bottom:0;
+  width:120px;
+  z-index:2;
+  pointer-events:none;
+}
+.strip-wrap::before{left:0;background:linear-gradient(to right,var(--black),transparent)}
+.strip-wrap::after{right:0;background:linear-gradient(to left,var(--black),transparent)}
+
+.strip-track{
+  display:flex;
+  gap:52px;
+  animation:strip 28s linear infinite;
+  width:max-content;
+  align-items:center;
+}
+@keyframes strip{
+  0%{transform:translateX(0)}
+  100%{transform:translateX(-50%)}
+}
+
+.si{
+  font-size:15px;
+  color:#2d2d2d;
+  font-style:italic;
+  white-space:nowrap;
+  font-weight:300;
+}
+.si.hl{
+  color:var(--orange);
+  font-style:normal;
+  font-weight:600;
+  font-size:13px;
+  background:var(--orange-low);
+  border:1px solid var(--border-orange);
+  padding:6px 16px;
+  border-radius:100px;
+  letter-spacing:0.03em;
+}
+.si-dot{color:#1e1e1e}
+
+/* =====================
+   PRICING
+   ===================== */
+#pricing{
+  padding:120px 72px;
+  border-top:1px solid var(--border);
+}
+.pricing-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:20px;
+  max-width:1000px;
+}
+.price-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:36px 32px;
+  position:relative;
+  transition:border-color 0.3s,transform 0.3s;
+}
+.price-card.featured{
+  border-color:var(--border-orange);
+  background:linear-gradient(135deg,var(--surface),rgba(255,85,0,0.04));
+}
+.price-card:hover{transform:translateY(-4px)}
+.feat-label{
+  position:absolute;
+  top:-12px;left:50%;transform:translateX(-50%);
+  background:var(--orange);
+  color:white;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  padding:4px 14px;
+  border-radius:100px;
+  white-space:nowrap;
+}
+.plan-name{
+  font-family:'Syne',sans-serif;
+  font-size:13px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.1em;
+  color:var(--grey);margin-bottom:16px;
+}
+.plan-price{
+  font-family:'Syne',sans-serif;
+  font-size:40px;font-weight:800;
+  letter-spacing:-2px;margin-bottom:4px;
+}
+.plan-price sup{font-size:18px;font-weight:600;vertical-align:super;margin-right:2px}
+.plan-per{font-size:12px;color:var(--grey);margin-bottom:24px}
+.plan-btn{
+  width:100%;text-align:center;
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--white);
+  padding:12px;
+  border-radius:100px;
+  font-size:13px;font-weight:600;
+  font-family:'DM Sans',sans-serif;
+  cursor:none;
+  transition:all 0.2s;
+  margin-bottom:28px;
+  display:block;
+}
+.price-card.featured .plan-btn{
+  background:var(--orange);
+  border-color:var(--orange);
+}
+.plan-btn:hover{
+  background:var(--orange);
+  border-color:var(--orange);
+  color:white;
+}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:10px}
+.plan-features li{
+  font-size:13px;color:var(--grey-light);
+  display:flex;align-items:center;gap:10px;font-weight:300;
+}
+.plan-features li::before{
+  content:'';
+  width:4px;height:4px;
+  border-radius:50%;
+  background:var(--orange);
+  flex-shrink:0;
+}
+
+/* =====================
+   CLOSING CTA
+   ===================== */
+#cta-section{
+  padding:180px 72px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+#cta-section::before{
+  content:'';
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:800px;height:800px;
+  background:radial-gradient(circle,rgba(255,85,0,0.07) 0%,transparent 60%);
+  pointer-events:none;
+}
+
+/* Animated grid lines */
+.grid-lines{
+  position:absolute;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(255,85,0,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,85,0,0.03) 1px,transparent 1px);
+  background-size:60px 60px;
+  pointer-events:none;
+  mask-image:radial-gradient(ellipse at center,black 20%,transparent 70%);
+}
+
+.cta-eyebrow{
+  font-size:11px;color:var(--orange);letter-spacing:0.12em;
+  text-transform:uppercase;font-weight:600;margin-bottom:24px;
+}
+.cta-title{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(34px,4.5vw,62px);
+  font-weight:800;
+  letter-spacing:-2.5px;
+  max-width:760px;
+  margin:0 auto 24px;
+  line-height:1.05;
+}
+.cta-sub{
+  font-size:16px;
+  color:var(--grey-light);
+  margin-bottom:52px;
+  font-weight:300;
+}
+.cta-meta{
+  margin-top:24px;
+  font-size:12px;
+  color:#2e2e2e;
+  letter-spacing:0.04em;
+}
+
+/* =====================
+   FOOTER
+   ===================== */
+footer{
+  padding:28px 72px;
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.foot-logo{
+  font-family:'Syne',sans-serif;
+  font-size:15px;font-weight:800;
+  letter-spacing:-0.3px;
+}
+.foot-logo em{color:var(--orange);font-style:normal}
+.foot-links{display:flex;gap:32px}
+.foot-links a{
+  font-size:13px;color:#2e2e2e;text-decoration:none;
+  transition:color 0.2s;
+}
+.foot-links a:hover{color:var(--grey)}
+.foot-copy{font-size:12px;color:#222}
+
+/* =====================
+   RESPONSIVE
+   ===================== */
+@media(max-width:900px){
+  nav{padding:20px 24px}
+  nav.scrolled{padding:14px 24px}
+  .nav-links{display:none}
+  #hero{
+    grid-template-columns:1fr;
+    padding:100px 24px 60px;
+    gap:40px;
+  }
+  .hero-left{padding-top:0}
+  #problem,#products,#how,#pricing,#cta-section{padding:100px 24px}
+  .products-grid,.pricing-grid{grid-template-columns:1fr}
+  .how-grid{grid-template-columns:1fr}
+  .how-sticky{position:static}
+  .how-visual{display:none}
+  footer{padding:24px;flex-direction:column;gap:16px;text-align:center}
+  .foot-links{flex-wrap:wrap;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- PROGRESS BAR -->
+<div id="progress-bar"></div>
+
+<!-- 3D CANVAS -->
+<canvas id="three-canvas"></canvas>
+
+<!-- SCROLL HINT -->
+<div id="scroll-hint">
+  <div class="sh-line"></div>
+  <span class="sh-label">scroll</span>
+</div>
+
+<!-- INTRO SPACER (scroll through for 3D experience) -->
+<div id="intro-spacer"></div>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <a href="#" class="nav-logo">mello<em>.</em>ai</a>
+  <ul class="nav-links">
+    <li><a href="#products">Product</a></li>
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#cta-section">About</a></li>
+  </ul>
+  <a href="#cta-section" class="btn">Book a Demo</a>
+</nav>
+
+<!-- MAIN SITE CONTENT -->
+<div id="main-content">
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-left">
+      <div class="badge"><div class="badge-dot"></div>AI Receptionist · Built for India</div>
+      <h1>Every missed call<br>is a <span class="hl">lost booking.</span></h1>
+      <p class="hero-sub">Mello answers your facility's calls 24/7 — completes bookings in real-time, in Hindi and English, so you never lose a customer while you're on the court.</p>
+      <div class="cta-row">
+        <a href="#cta-section" class="btn">Book a Demo</a>
+        <a href="#how" class="btn-ghost">See how it works <span>→</span></a>
+      </div>
+      <p class="hero-trust">Piloting with sports facilities across <em>Navi Mumbai</em></p>
+    </div>
+    <div class="hero-right">
+      <div class="stat-card big">
+        <div class="sc-top">
+          <span class="sc-label">Calls Answered Today</span>
+          <span class="sc-badge live-dot">Live</span>
+        </div>
+        <div class="sc-value" id="counter">0</div>
+        <div class="sc-sub">Across all mello facilities</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="stat-card">
+          <div class="sc-top"><span class="sc-label">Avg. Booking Time</span></div>
+          <div class="sc-value">2<span style="font-size:20px;color:var(--grey)">m</span></div>
+          <div class="sc-sub">From call to confirmation</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-top"><span class="sc-label">Conversion Rate</span></div>
+          <div class="sc-value" style="color:var(--orange)">94<span style="font-size:20px">%</span></div>
+          <div class="sc-sub">Calls → bookings</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-top">
+          <span class="sc-label">Languages</span>
+          <span class="sc-badge">Natural code-switching</span>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <div style="background:var(--surface2);border:1px solid var(--border);padding:8px 18px;border-radius:100px;font-size:14px;font-weight:500">हिन्दी</div>
+          <div style="background:var(--surface2);border:1px solid var(--border);padding:8px 18px;border-radius:100px;font-size:14px;font-weight:500">English</div>
+          <div style="background:var(--orange-low);border:1px solid var(--border-orange);padding:8px 18px;border-radius:100px;font-size:14px;font-weight:500;color:var(--orange)">Mixed</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section id="problem">
+    <div class="problem-pairs">
+      <div class="problem-pair">
+        <div class="p-dim">Staff miss calls.</div>
+        <div class="p-bright">Mello <span class="hl">never</span> does.</div>
+      </div>
+      <div class="problem-pair">
+        <div class="p-dim">Hiring a receptionist costs ₹15,000/month.</div>
+        <div class="p-bright">Mello costs <span class="hl">less.</span></div>
+      </div>
+      <div class="problem-pair">
+        <div class="p-dim">Manual booking takes forever.</div>
+        <div class="p-bright">Mello books in <span class="hl">under 3 minutes.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRODUCTS -->
+  <section id="products">
+    <div class="sec-label">The Platform</div>
+    <h2 class="sec-title">Three tools.<br>One phone call.</h2>
+    <div class="products-grid">
+      <div class="prod-card">
+        <div class="pc-icon">🎙️</div>
+        <div class="pc-tag">Mello Voice</div>
+        <h3 class="pc-title">AI Receptionist</h3>
+        <p class="pc-body">Answers every inbound call in your facility's name. Collects booking details, checks availability, and confirms — all in under 3 minutes.</p>
+        <div class="pc-features">
+          <span class="feat-tag">Hindi + English</span>
+          <span class="feat-tag">24/7 coverage</span>
+          <span class="feat-tag">Real-time booking</span>
+        </div>
+      </div>
+      <div class="prod-card">
+        <div class="pc-icon">📅</div>
+        <div class="pc-tag">Mello Book</div>
+        <h3 class="pc-title">Booking Engine</h3>
+        <p class="pc-body">The rules engine behind every booking. Manages courts, slots, memberships, and group restrictions — zero double-bookings, zero conflicts.</p>
+        <div class="pc-features">
+          <span class="feat-tag">Live availability</span>
+          <span class="feat-tag">Member priority</span>
+          <span class="feat-tag">Group rules</span>
+        </div>
+      </div>
+      <div class="prod-card">
+        <div class="pc-icon">💬</div>
+        <div class="pc-tag">Mello Chat</div>
+        <h3 class="pc-title">WhatsApp Bot</h3>
+        <p class="pc-body">Sends a WhatsApp confirmation within 30 seconds of every call. Handles reschedules, cancellations, and FAQs — no staff required.</p>
+        <div class="pc-features">
+          <span class="feat-tag">30s confirmation</span>
+          <span class="feat-tag">Reschedule/cancel</span>
+          <span class="feat-tag">FAQ bot</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="how-grid">
+      <div>
+        <div class="sec-label">How It Works</div>
+        <h2 class="sec-title">Three steps.<br>Zero missed<br>bookings.</h2>
+        <div class="how-steps">
+          <div class="hw-step">
+            <div class="hw-num">01</div>
+            <div class="hw-body">
+              <h3>Customer calls your facility</h3>
+              <p>Mello picks up instantly — in your facility's name. No hold music. No voicemail. Every call answered, every time.</p>
+            </div>
+          </div>
+          <div class="hw-step">
+            <div class="hw-num">02</div>
+            <div class="hw-body">
+              <h3>Mello collects and confirms the booking</h3>
+              <p>Asks the right questions, checks live availability, verifies membership status, and books the slot — in Hindi or English or both.</p>
+            </div>
+          </div>
+          <div class="hw-step">
+            <div class="hw-num">03</div>
+            <div class="hw-body">
+              <h3>WhatsApp confirmation in 30 seconds</h3>
+              <p>Customer gets instant confirmation. You see it in your dashboard. No staff touched it. No booking was lost.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="how-sticky">
+        <div class="how-visual">
+          <div class="vis-block">
+            <div class="call-ui">
+              <div class="call-header">
+                <div>
+                  <div style="font-size:11px;color:var(--grey);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Incoming call</div>
+                  <div class="call-name">Arjun M.</div>
+                </div>
+                <div class="call-status">Answering...</div>
+              </div>
+              <div class="waveform" id="waveform"></div>
+              <div class="call-detail">
+                <div class="cd-item">🏟️ Futsal</div>
+                <div class="cd-item">📅 Today</div>
+                <div class="cd-item">⏰ 7:00 PM</div>
+              </div>
+            </div>
+          </div>
+          <div class="vis-block">
+            <div class="booking-ui">
+              <div class="bu-row"><span class="bu-label">Sport</span><span class="bu-val">Futsal — Court 2</span></div>
+              <div style="height:1px;background:var(--border)"></div>
+              <div class="bu-row"><span class="bu-label">Date</span><span class="bu-val">Today, Jun 2</span></div>
+              <div style="height:1px;background:var(--border)"></div>
+              <div class="bu-row"><span class="bu-label">Time</span><span class="bu-val">7:00 – 8:00 PM</span></div>
+              <div style="height:1px;background:var(--border)"></div>
+              <div class="bu-row"><span class="bu-label">Member</span><span class="bu-val" style="color:var(--orange)">✓ Verified</span></div>
+              <div class="bu-confirmed">✓ Booking Confirmed</div>
+            </div>
+          </div>
+          <div class="vis-block">
+            <div class="wa-ui">
+              <div class="wa-header">
+                <div class="wa-icon">💬</div>
+                <div>
+                  <div class="wa-name">Mello · DribbleZone</div>
+                  <div class="wa-time">just now</div>
+                </div>
+              </div>
+              <div class="wa-bubble">
+                Hi <strong>Arjun</strong> 👋<br><br>
+                Your booking at <strong>DribbleZone</strong> is confirmed!<br><br>
+                🏟️ <strong>Futsal, Court 2</strong><br>
+                📅 <strong>Today, 7:00 – 8:00 PM</strong><br><br>
+                See you on the court 🔥
+              </div>
+              <div class="wa-timer">Sent 18 seconds after call</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOCIAL PROOF STRIP -->
+  <section id="proof">
+    <p class="proof-label">Facilities currently piloting mello</p>
+    <div class="strip-wrap">
+      <div class="strip-track" id="strip-track"></div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing">
+    <div class="sec-label">Pricing</div>
+    <h2 class="sec-title">Simple pricing.<br>Real results.</h2>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price"><sup>₹</sup>4,999</div>
+        <div class="plan-per">per month</div>
+        <a href="#cta-section" class="plan-btn">Get Started</a>
+        <ul class="plan-features">
+          <li>500 call minutes included</li>
+          <li>1 facility</li>
+          <li>Mello Voice + Book + Chat</li>
+          <li>Email support</li>
+          <li>₹8/min overage</li>
+        </ul>
+      </div>
+      <div class="price-card featured">
+        <div class="feat-label">Most Popular</div>
+        <div class="plan-name">Growth</div>
+        <div class="plan-price"><sup>₹</sup>9,999</div>
+        <div class="plan-per">per month</div>
+        <a href="#cta-section" class="plan-btn">Get Started</a>
+        <ul class="plan-features">
+          <li>1,500 call minutes included</li>
+          <li>Up to 3 facilities</li>
+          <li>All Mello products</li>
+          <li>Priority support</li>
+          <li>Analytics dashboard</li>
+        </ul>
+      </div>
+      <div class="price-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-price" style="font-size:32px;letter-spacing:-1px">Custom</div>
+        <div class="plan-per">talk to us</div>
+        <a href="#cta-section" class="plan-btn">Contact Us</a>
+        <ul class="plan-features">
+          <li>Unlimited call minutes</li>
+          <li>Multi-location</li>
+          <li>Dedicated account manager</li>
+          <li>Custom integrations</li>
+          <li>SLA guarantees</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING CTA -->
+  <section id="cta-section">
+    <div class="grid-lines"></div>
+    <p class="cta-eyebrow">Ready to stop losing bookings?</p>
+    <h2 class="cta-title">Your facility shouldn't lose revenue to a missed call.</h2>
+    <p class="cta-sub">Set up in under a week. No hardware. Cancel anytime.</p>
+    <a href="https://calendly.com" class="btn" style="font-size:16px;padding:16px 44px" target="_blank">Book a Demo →</a>
+    <p class="cta-meta">Currently piloting in Mumbai &amp; Navi Mumbai</p>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="foot-logo">mello<em>.</em>ai</div>
+    <div class="foot-links">
+      <a href="#products">Product</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#cta-section">About</a>
+      <a href="#cta-section">Contact</a>
+    </div>
+    <div class="foot-copy">© 2026 mello.ai</div>
+  </footer>
+
+</div><!-- /main-content -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =============================================
+   CUSTOM CURSOR
+   ============================================= */
+const cursor = document.getElementById('cursor');
+const cursorRing = document.getElementById('cursor-ring');
+let mx=0,my=0,cx=0,cy=0;
+document.addEventListener('mousemove',e=>{
+  mx=e.clientX;my=e.clientY;
+  cursor.style.left=mx+'px';cursor.style.top=my+'px';
+});
+(function animCursor(){
+  cx+=(mx-cx)*0.15;cy+=(my-cy)*0.15;
+  cursorRing.style.left=cx+'px';cursorRing.style.top=cy+'px';
+  requestAnimationFrame(animCursor);
+})();
+document.querySelectorAll('a,.btn,.btn-ghost,.prod-card,.price-card,.hw-step,.stat-card').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{
+    cursor.style.width='18px';cursor.style.height='18px';
+    cursorRing.style.width='56px';cursorRing.style.height='56px';
+  });
+  el.addEventListener('mouseleave',()=>{
+    cursor.style.width='10px';cursor.style.height='10px';
+    cursorRing.style.width='36px';cursorRing.style.height='36px';
+  });
+});
+
+/* =============================================
+   THREE.JS SCROLL-DRIVEN 3D INTRO
+   ============================================= */
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(window.innerWidth,window.innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080808);
+scene.fog = new THREE.FogExp2(0x080808, 0.035);
+
+const camera = new THREE.PerspectiveCamera(65,window.innerWidth/window.innerHeight,0.1,200);
+camera.position.set(0,0,7);
+
+/* Lighting */
+const ambientLight = new THREE.AmbientLight(0xFF5500,0.3);
+scene.add(ambientLight);
+const pointLight1 = new THREE.PointLight(0xFF5500,3,20);
+pointLight1.position.set(0,0,3);
+scene.add(pointLight1);
+const pointLight2 = new THREE.PointLight(0xff8833,1.5,15);
+pointLight2.position.set(4,-3,2);
+scene.add(pointLight2);
+
+/* Central core sphere */
+const coreGeo = new THREE.SphereGeometry(0.12,32,32);
+const coreMat = new THREE.MeshBasicMaterial({color:0xFF5500});
+const core = new THREE.Mesh(coreGeo,coreMat);
+scene.add(core);
+
+/* Glow layers */
+const glows = [];
+[0.3,0.55,0.9].forEach((r,i)=>{
+  const g = new THREE.Mesh(
+    new THREE.SphereGeometry(r,32,32),
+    new THREE.MeshBasicMaterial({color:0xFF5500,transparent:true,opacity:0.04-i*0.01})
+  );
+  scene.add(g);
+  glows.push(g);
+});
+
+/* Sound wave rings — representing AI voice */
+const rings = [];
+const RING_COUNT = 9;
+for(let i=0;i<RING_COUNT;i++){
+  const radius = 0.4 + i*0.55;
+  const mat = new THREE.MeshBasicMaterial({
+    color:0xFF5500,
+    transparent:true,
+    opacity:0.0,
+    wireframe:false
+  });
+  const geo = new THREE.TorusGeometry(radius,0.014,12,128);
+  const ring = new THREE.Mesh(geo,mat);
+  ring.rotation.x = Math.PI/2 + (i*0.07);
+  ring.rotation.y = i*0.1;
+  ring.scale.setScalar(0.0);
+  ring.userData={
+    idx:i,
+    maxOpacity:Math.max(0.22,(0.88-(i*0.06))),
+    baseRotX:Math.PI/2+(i*0.07),
+    baseRotY:i*0.1
+  };
+  rings.push(ring);
+  scene.add(ring);
+}
+
+/* Inner bright ring lines (pulse rings) */
+const pulseRings = [];
+for(let i=0;i<5;i++){
+  const r = 0.2+i*0.7;
+  const mat = new THREE.MeshBasicMaterial({color:0xFF7722,transparent:true,opacity:0.0});
+  const geo = new THREE.TorusGeometry(r,0.007,8,64);
+  const ring = new THREE.Mesh(geo,mat);
+  ring.rotation.x = Math.PI/3;
+  ring.rotation.z = i*0.2;
+  ring.scale.setScalar(0.0);
+  pulseRings.push(ring);
+  scene.add(ring);
+}
+
+/* Vertical ring plane */
+const vRings = [];
+for(let i=0;i<5;i++){
+  const r = 0.6+i*0.8;
+  const mat = new THREE.MeshBasicMaterial({color:0xFF5500,transparent:true,opacity:0.0});
+  const geo = new THREE.TorusGeometry(r,0.008,8,80);
+  const ring = new THREE.Mesh(geo,mat);
+  ring.rotation.y = (i*Math.PI/5);
+  ring.scale.setScalar(0.0);
+  vRings.push(ring);
+  scene.add(ring);
+}
+
+/* Particle system */
+const PART_COUNT = 800;
+const partPositions = new Float32Array(PART_COUNT*3);
+const partSpeeds = new Float32Array(PART_COUNT);
+for(let i=0;i<PART_COUNT;i++){
+  const theta = Math.random()*Math.PI*2;
+  const phi = Math.acos((Math.random()*2)-1);
+  const r = 3+Math.random()*12;
+  partPositions[i*3]   = r*Math.sin(phi)*Math.cos(theta);
+  partPositions[i*3+1] = r*Math.sin(phi)*Math.sin(theta);
+  partPositions[i*3+2] = r*Math.cos(phi)-3;
+  partSpeeds[i] = 0.3+Math.random()*0.7;
+}
+const partGeo = new THREE.BufferGeometry();
+partGeo.setAttribute('position',new THREE.BufferAttribute(partPositions,3));
+const partMat = new THREE.PointsMaterial({color:0xFF5500,size:0.04,transparent:true,opacity:0.0});
+const particles = new THREE.Points(partGeo,partMat);
+scene.add(particles);
+
+/* =============================================
+   SCROLL LOGIC
+   ============================================= */
+const introSpacer = document.getElementById('intro-spacer');
+const mainContent = document.getElementById('main-content');
+const navbar = document.getElementById('navbar');
+const scrollHint = document.getElementById('scroll-hint');
+const progressBar = document.getElementById('progress-bar');
+let introComplete = false;
+let scrollProgress = 0;
+
+function getScrollProgress(){
+  const spacerH = introSpacer.offsetHeight;
+  return Math.min(1,Math.max(0,window.scrollY/spacerH));
+}
+
+function updateScene(p){
+  const t = Date.now()*0.001;
+
+  // ---- PHASE DESIGN ----
+  // p 0.00→0.30  EMERGENCE  — rings grow from seed to full, camera zooms in
+  // p 0.30→0.72  PEAK       — full display, camera orbits gently, everything breathes
+  // p 0.72→0.88  CONTRACTION — rings slowly dim/shrink inward
+  // p 0.88→1.00  FADE OUT   — fast clean fade, site appears
+
+  // ---- SHARED INTENSITY (drives core + glows) ----
+  const intensity = p < 0.30
+    ? p/0.30                            // 0→1 during emergence
+    : p < 0.72
+      ? 1                               // 1   during peak
+      : 1 - ((p-0.72)/0.28)*0.6;       // 1→0.4 during contraction
+
+  // ---- CAMERA ----
+  // Zoom in during emergence (8→4.8), gentle orbit at peak, pull back on exit
+  let camZ;
+  if(p < 0.30)      camZ = 8 - (p/0.30)*3.2;            // 8 → 4.8
+  else if(p < 0.72) camZ = 4.8 + Math.sin(t*0.18)*0.25; // hover ~4.8
+  else              camZ = 4.8 + ((p-0.72)/0.28)*3.5;    // 4.8 → 8.3
+
+  camera.position.z = camZ;
+  camera.position.x = Math.sin(t*0.20)*0.5*(1-p*0.95);
+  camera.position.y = Math.cos(t*0.14)*0.3*(1-p*0.95);
+  camera.lookAt(0,0,0);
+
+  // ---- CORE ----
+  const coreScale = (0.7 + intensity*1.1)*(1+Math.sin(t*3.5)*0.18);
+  core.scale.setScalar(coreScale);
+
+  // ---- GLOWS ----
+  glows.forEach((g,i)=>{
+    g.material.opacity = (0.06+i*0.025)*intensity*(0.5+Math.sin(t*2.2+i)*0.5);
+  });
+
+  // ---- MAIN RINGS — tight stagger, full scale by p=0.30 ----
+  rings.forEach((ring,i)=>{
+    const delay    = i*0.022;              // max delay = 0.198 (ring 9)
+    const growEnd  = 0.30;                 // all rings at full scale by 30% scroll
+    // grow progress: 0→1 between delay and growEnd
+    const rp     = delay >= growEnd ? 1 : Math.max(0,Math.min(1,(p-delay)/(growEnd-delay)));
+    const eased  = 1-Math.pow(1-rp,3);    // cubic ease-out: fast start, smooth land
+
+    // breathing at peak
+    const breathe = (p>0.28 && p<0.88) ? 1+Math.sin(t*2.3+i*0.65)*0.038 : 1;
+
+    // fade out — starts at 0.75, rings shrink back inward
+    const fadeOut  = p>0.75 ? Math.min(1,(p-0.75)/0.22) : 0;
+    const shrink   = p>0.75 ? 1-Math.min(1,(p-0.75)/0.25)*0.35 : 1;
+
+    ring.scale.setScalar(eased*breathe*shrink);
+    ring.material.opacity = ring.userData.maxOpacity*eased*(1-fadeOut*0.95);
+    ring.rotation.x = ring.userData.baseRotX + t*0.10*(i%2===0?1:-1);
+    ring.rotation.y = ring.userData.baseRotY + t*0.07;
+  });
+
+  // ---- PULSE RINGS — appear slightly after, same tight stagger ----
+  pulseRings.forEach((ring,i)=>{
+    const delay  = 0.04+i*0.03;
+    const rp     = Math.max(0,Math.min(1,(p-delay)/0.26));
+    const eased  = 1-Math.pow(1-rp,2);
+    const pulse  = 0.87+Math.sin(t*3.8+i*1.5)*0.11;
+    const fadeOut = p>0.75 ? Math.min(1,(p-0.75)/0.20) : 0;
+    ring.scale.setScalar(eased*pulse);
+    ring.material.opacity = 0.42*eased*(1-fadeOut);
+    ring.rotation.z += 0.007*(i%2===0?1:-1);
+    ring.rotation.y += 0.004;
+  });
+
+  // ---- VERTICAL RINGS ----
+  vRings.forEach((ring,i)=>{
+    const delay  = 0.06+i*0.03;
+    const rp     = Math.max(0,Math.min(1,(p-delay)/0.24));
+    const eased  = 1-Math.pow(1-rp,2);
+    const fadeOut = p>0.76 ? Math.min(1,(p-0.76)/0.20) : 0;
+    ring.scale.setScalar(eased);
+    ring.material.opacity = 0.24*eased*(1-fadeOut);
+    ring.rotation.x += 0.005;
+    ring.rotation.y += 0.008*(i%2===0?1:-1);
+  });
+
+  // ---- PARTICLES ----
+  const pos = partGeo.attributes.position.array;
+  for(let i=0;i<PART_COUNT;i++){
+    pos[i*3+1] += partSpeeds[i]*0.003;
+    if(pos[i*3+1]>8) pos[i*3+1]=-8;
+  }
+  partGeo.attributes.position.needsUpdate = true;
+  particles.rotation.y += 0.001;
+  const partFade = p>0.76 ? Math.max(0,1-(p-0.76)/0.18) : 1;
+  partMat.opacity  = Math.min(p*4, 0.38)*partFade;
+  partMat.size     = 0.03+p*0.045;
+
+  // ---- POINT LIGHT ----
+  pointLight1.intensity = (2+Math.sin(t*2.8)*2)*intensity;
+
+  // ---- SCROLL HINT ----
+  scrollHint.style.opacity = p<0.02?'1':Math.max(0,1-p*20).toString();
+
+  // ---- PROGRESS BAR ----
+  progressBar.style.width = (p*100)+'%';
+
+  // ---- TRANSITION — later (p=0.97) and smooth ----
+  if(p >= 0.97 && !introComplete){
+    introComplete = true;
+    canvas.style.opacity   = '0';
+    mainContent.classList.add('active');
+    navbar.classList.add('visible');
+    progressBar.style.opacity = '0';
+  } else if(p < 0.93 && introComplete){
+    introComplete = false;
+    canvas.style.opacity   = '1';
+    mainContent.classList.remove('active');
+    navbar.classList.remove('visible');
+    progressBar.style.opacity = '1';
+  }
+  // smooth fade zone p=0.90→0.97
+  if(p > 0.90 && p < 0.97){
+    canvas.style.opacity = Math.max(0,(0.97-p)/0.07).toString();
+  }
+  if(p <= 0.90){ canvas.style.opacity = '1'; }
+}
+
+window.addEventListener('scroll',()=>{
+  scrollProgress = getScrollProgress();
+  updateScene(scrollProgress);
+  
+  /* Nav scrolled state */
+  if(introComplete){
+    const scrolled = window.scrollY > introSpacer.offsetHeight+80;
+    navbar.classList.toggle('scrolled',scrolled);
+  }
+},{passive:true});
+
+/* =============================================
+   ANIMATION LOOP
+   ============================================= */
+(function animate(){
+  requestAnimationFrame(animate);
+  
+  const t = Date.now()*0.001;
+  
+  /* Idle animations when barely scrolled — rings already visible at load */
+  if(scrollProgress<0.02){
+    rings.forEach((ring,i)=>{
+      ring.rotation.x += 0.004;
+      ring.rotation.y += 0.002;
+      // Visible from the start — staged sizes so depth is clear
+      const idleScale = 0.28 + (i*0.04) + Math.sin(t*0.7+i*0.5)*0.05;
+      ring.scale.setScalar(idleScale);
+      ring.material.opacity = 0.10 + Math.sin(t*1.2+i*0.9)*0.04 - i*0.007;
+    });
+    core.scale.setScalar(1.1+Math.sin(t*2.8)*0.18);
+    glows.forEach((g,i)=>{
+      g.material.opacity = (0.07+i*0.02)*(0.6+Math.sin(t*1.8+i)*0.4);
+    });
+  }
+  
+  renderer.render(scene,camera);
+})();
+
+/* =============================================
+   RESIZE
+   ============================================= */
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+/* =============================================
+   SCROLL REVEAL (content sections)
+   ============================================= */
+const revealObs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting) e.target.classList.add('visible');
+  });
+},{threshold:0.15});
+
+document.querySelectorAll('.problem-pair,.hw-step,.vis-block').forEach(el=>revealObs.observe(el));
+
+/* =============================================
+   WAVEFORM ANIMATION
+   ============================================= */
+const wf = document.getElementById('waveform');
+if(wf){
+  const bars = [8,14,20,28,22,32,18,24,30,16,26,34,20,14,10,18,28,22,16,12,24,30,18,14,20,26,22,18,12,16,28,20,24,18,14];
+  bars.forEach(h=>{
+    const b = document.createElement('div');
+    b.className='wv-bar';
+    b.style.setProperty('--d',(0.4+Math.random()*0.8)+'s');
+    b.style.setProperty('--h',h+'px');
+    b.style.animationDelay=(Math.random()*0.5)+'s';
+    wf.appendChild(b);
+  });
+}
+
+/* =============================================
+   SOCIAL PROOF STRIP
+   ============================================= */
+const facilities = [
+  'Raheja Illseum','DribbleZone Kharghar','Smash Arena',
+  'Court One','FutureKick Navi Mumbai','The Turf Co.',
+  'PlayZone Bandra','SmashPoint Powai',
+  {text:'Add Your Facility →',hl:true}
+];
+const track = document.getElementById('strip-track');
+if(track){
+  [0,1].forEach(()=>{
+    facilities.forEach((f,i)=>{
+      const el=document.createElement('span');
+      el.className='si'+(f.hl?' hl':'');
+      el.textContent=f.text||f;
+      track.appendChild(el);
+      if(!f.hl){
+        const dot=document.createElement('span');
+        dot.className='si-dot';
+        dot.textContent=' · ';
+        track.appendChild(dot);
+      } else if(i<facilities.length-1){
+        const dot=document.createElement('span');
+        dot.className='si-dot';
+        dot.textContent='   ';
+        track.appendChild(dot);
+      }
+    });
+  });
+}
+
+/* =============================================
+   ANIMATED COUNTER (hero)
+   ============================================= */
+let counterDone=false;
+const counterEl=document.getElementById('counter');
+function animCounter(){
+  if(counterDone||!counterEl)return;
+  counterDone=true;
+  let val=0,target=847;
+  const step=()=>{
+    val+=Math.ceil((target-val)*0.08)+1;
+    if(val>=target){val=target;counterEl.textContent=val;return;}
+    counterEl.textContent=val;
+    requestAnimationFrame(step);
+  };
+  setTimeout(step,400);
+}
+const heroObs=new IntersectionObserver(e=>{
+  if(e[0].isIntersecting)animCounter();
+},{threshold:0.3});
+if(document.getElementById('hero'))heroObs.observe(document.getElementById('hero'));
+
+</script>
+</body>
+</html>
